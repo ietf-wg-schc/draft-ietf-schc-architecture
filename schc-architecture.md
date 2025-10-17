@@ -2,7 +2,7 @@
 
 stand_alone: true
 ipr: trust200902
-docname: draft-ietf-schc-architecture-0
+docname: draft-ietf-schc-architecture-05
 cat: info
 submissionType: IETF
 
@@ -90,8 +90,8 @@ installed to enable reliable and scalable operations.
 
    *  C/D.  Compression and Decompression.
 
-   *  Context.  All the information related to the Rules for SCHC
-      Header, Non-Compression, C/D and F/R and CORECONF_Management.
+   *  Context.  All the information related to the Rules for a SCHC
+      Header operation, which can be either Non-Compression, C/D, F/R, or CORECONF_Management.
 
    *  FID.  Field Identifiers, describing the name of the field in a
       protocol header.
@@ -108,6 +108,8 @@ installed to enable reliable and scalable operations.
 
    *  SCHC Device (end-point).  The SCHC end-point located downstream,
       e.g., in a constrained physical device.
+      
+   *  SCHC Header.  A SCHC Header contains the information necessary for a SCHC operation, e.g., a Rule ID and a residue. The SCHC Control Header transports SCHC's control information whereas the SCHC Data Header transports user payload that was processed by SCHC.
 
    *  SCHC end-point.  An entity (e.g., Device, Application and Network 
       Gateway) involved in the SCHC process. Each SCHC end-point
@@ -148,9 +150,9 @@ This section specifies the principal blocks defined for building and using the S
 
 A SCHC Stratum is the SCHC analoguous to a classical layer in the IP architecture, but its operation may cover multiple IP layers or only a subset of a layer, e.g., IP only, IP+UDP, CoAP, or OSCORE {{rfc8824}}. The term stratum is thus used to avoid confusion with traditional layers. Also, SCHC Strata are not stacked, though they can be nested.
 
-The SCHC Stratum data in a datagram is composed of a SCHC Control Header (which may be compressed to the point that it is fully implicit and thus elided), a SCHC Data Header (that is used to uncompress a section of the SCHC datagram), and user payload that is unaffected by the SCHC Stratum. The SCHC Stratum operation requires at least 2 end-points, one for the SCHC Control Header and one or more for the SCHC Data Header.
+The SCHC Stratum data in a datagram is composed of a SCHC Control Header (which may be compressed to the point that it is fully implicit and thus elided), a SCHC Data Header (that is used to uncompress a section of the SCHC datagram), and possibly some remaining payload that is unaffected by the SCHC Stratum. The SCHC Stratum operation requires at least 2 end-points, one for the SCHC Control Header and one or more for the SCHC Data Header.
 
-A SCHC compressed datagram may contain multiple stratum data, to be handled by sequential (nested) SCHC Strata, where the inner (nested) Stratum operates within the payload of the outter (nesting) Stratum.
+A SCHC datagram may contain additional stratum data, to be handled by sequential (nested) SCHC Strata, where the inner (nested) Stratum operates within the decompressed/reassembled payload of the outter (nesting) Stratum.
 
 
 <!--
@@ -203,7 +205,7 @@ Note that a SCHC Layer is different from an ISO layer {{Fig-SCHCInstance}}.
 -->
 
 
-## SCHC Control end-point
+## SCHC Control End-Point
 
 The SCHC Control end-point manages the SCHC Control Headers and provides the information and the selection of a SCHC Data end-point.
 
@@ -226,7 +228,7 @@ shows the SCHC strata that needs to be introduced in the Architecture when SCHC 
 ~~~~
 
 +---------------+---------------+---------------+ S 
-| SCHC Data Header  | SCHC Data Header  | SCHC Data Header  | C
+| SCHC Data Hdr | SCHC Data Hdr | SCHC Data Hdr | C
 | end-point___  | end-point___  | end-point___  | H
 |         [SoR] |         [SoR] |         [SoR] | C
 |         [___] |         [___] |         [___] | 
@@ -237,10 +239,10 @@ shows the SCHC strata that needs to be introduced in the Architecture when SCHC 
 .                                        [SoR]  . T
 .                                        [___]  . U
 +...............................................+ M
-               _____________^        
-              /                    
-            /
-           +-- Discriminator: (SCHC Control Header)(SCHC Data Header)    
+             _____________^        
+           /                    
+         /
+       +-- Discriminator: (SCHC Control Header)(SCHC Data Header)    
 
 Each SCHC Data end-point uses its own Set of Rules,
 but share the same SCHC Control Header.  
@@ -252,14 +254,14 @@ but share the same SCHC Control Header.
 
 The SCHC Control Header carries information that is required for the SCHC strata operation. For example, it selects the correct end-point and checks the validity of the datagram.
 There IS NOT always a RuleID if there is only one Rule for the SCHC Control Header, whose length is 0. The SCHC Control Header format is not fixed, and the SoR MUST have one or more Rules describing the formats. SCHC Control Header contains different fields.
-For end-point, when the SCHC Control Header may identify the next protocol in the stack, the format of the SCHC Control Header takes the format as {{Fig-SCHCHDR}} shows.
+For the end-point, if the SCHC Control Header identifies, e.g., the next protocol in the stack, the format of the SCHC Control Header may be represented as shown in {{Fig-SCHCHDR}}.
 
 ~~~~
 
 Non-compressed SCHC Control Header Format:
-+- - - - - - +- - - - - - -+- - -+
++- - - - - - - - - +- - - - - - -+- - -+
 | SCHC Instance ID | Protocol ID | CRC |
-+- - - - - - +- - - - - - -+- - -+
++- - - - - - - - - +- - - - - - -+- - -+
 
 SCHC Control Header Compressed:
 +- - - - -+- - - - - - - - - - +
@@ -287,8 +289,9 @@ In this example the Rule defines:
 * And A CRC. The CRC field is 8 bits length and covers the SCHC Control Header and the SCHC datagram from error. When it is elided by the compression, the layer-4 checksum MUST be replaced by another validation sequence.
 
 
-## SCHC Data end-point {#end_points}
-The SCHC Data end-point is characterized by a particular SoR common with the corresponding distant end-point.
+## SCHC Data End-Point {#end_points}
+A SCHC Data end-point handles this node's side of a SCHC Data instance?
+It is characterized by a particular SoR common with the corresponding distant end-point.
 The {{rfc8724}} defines a protocol operation between a pair of peers.
 In a SCHC strata, several SCHC end-points may contain different SoR.
 
@@ -738,10 +741,11 @@ initiated the PPP connection to the node that accepted it.
 Before the SCHC compression takes place, the SCHC Control Header showed in the {{Fig-SCHC_hdr}}, is virtually inserted before the real protocol header and data that are compressed in the SCHC Instance, e.g. a IPv6 in this figure.
 
 ~~~~
-                                       |---- SCHC datagram ----|
+                                        <--- SCHC datagram ->
  +------------------+------------------+---------+-----------+
- | IEEE 802 Header  | SCHC Stratum Hdr | Rule ID | Compressed|
- | Ethertype = SCHC | Ethertype = IPv6 |         | Residue   |
+ |                  | SCHC             | SCHC    |  uncomp-  |
+ | IEEE 802 Header  | Stratum Header   | Data    |  pressed  |
+ | Ethertype = SCHC | Ethertype = IPv6 | Header  |  payload  |
  +------------------+------------------+---------+-----------+
                      <-
                        SCHC overhead
@@ -760,14 +764,15 @@ The SCHC Control Header between IPv6 and the ULP is not needed because of the Ne
 -->
 
 ~~~~
-                             |---- SCHC datagram -----|
- +-------------+-------------+---------+------------+
- | IPv6 Header | SCHC Str Hdr| Rule ID | Compressed |
- |  NH=SCHC    | NH = ULP    |         | Residue    |
- +-------------+-------------+---------+------------+
+                                 <--- SCHC datagram ->
+ +-------------+----------------+---------+-----------+
+ |             | SCHC           | SCHC    |  uncomp-  |
+ | IPv6 Header | Stratum Header | Data    |  pressed  |
+ |  NH=SCHC    | NH = ULP       | Header  |  payload  |
+ +-------------+----------------+---------+-----------+
                 <-
                 SCHC overhead
-                           ->
+                              ->
 ~~~~
 {: #Fig-SCHC_hdr1 title='SCHC over IPv6'}
 
@@ -784,14 +789,15 @@ If there is only one SCHC Instance, it can be elided as well, otherwise a rule a
 When SCHC operates over the Internet, middleboxes may block datagrams with a next header that is SCHC. To avoid that issue, it would be desirable to prepend a UDP header before the SCHC Control Header as shown in figure {{Fig-SCHC_hdr2}}.
 
 ~~~~
-                                           |---- SCHC datagram -----|
- +-------------+-------------+-------------+---------+------------+
- | IPv6 Header | UDP Header  | SCHC Str Hdr| Rule ID | Compressed |
- |  NH=UDP     | Port = SCHC | NH = ULP    |         | Residue    |
- +-------------+-------------+-------------+---------+------------+
+                                               <--- SCHC datagram ->
+ +-------------+-------------+----------------+---------+-----------+
+ |             |             | SCHC           | SCHC    |  uncomp-  |
+ | IPv6 Header | UDP Header  | Stratum Header | Data    |  pressed  |
+ |  NH=UDP     | Port = SCHC | NH = ULP       | Header  |  payload  |
+ +-------------+-------------+----------------+---------+-----------+
                 <-
                        SCHC overhead
-                                          ->
+                                            ->
 ~
 ~~~~
 {: #Fig-SCHC_hdr2 title='SCHC over UDP'}
